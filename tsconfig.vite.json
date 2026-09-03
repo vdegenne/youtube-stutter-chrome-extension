@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"composite": true,
+		"target": "esnext",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"strict": true,
+		"useDefineForClassFields": false,
+		"experimentalDecorators": true,
+		"outDir": "./lib",
+		"rootDir": "./src",
+		"skipLibCheck": true,
+		"types": ["vite/client", "chrome"]
+	},
+	"include": ["./src/**/*", "./types.d.ts"]
+}

@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"composite": true,
+		"tsBuildInfoFile": "./lib/background.tsbuildinfo",
+		"target": "esnext",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"strict": true,
+		"experimentalDecorators": true,
+		"outDir": "./lib",
+		"rootDir": "./src",
+		"skipLibCheck": true,
+		"types": ["chrome"]
+	},
+	"include": ["./src/background.ts", "./src/debug.ts", "./types.d.ts"]
+}
