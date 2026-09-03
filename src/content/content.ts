@@ -1,7 +1,7 @@
-/******************************************
- * !!!!!!!! DO NOT REORDER THIS !!!!!!!
- ******************************************/
-import './internal-polyfill.ts';
+/**********************************************
+ * !!!!!!!! DO NOT REORDER THE IMPORTS !!!!!!!!
+ **********************************************/
+import './internal-polyfill.js';
 import '@webcomponents/webcomponentsjs/webcomponents-bundle.js';
 import './youtube-stutter-dialog-wrapper.js';
 import {YouTubeStutterDialogWrapper} from './youtube-stutter-dialog-wrapper.js';

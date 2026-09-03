@@ -126,7 +126,7 @@
 		"@tailwindcss/postcss": "^4.3.3",
 		"@types/chrome": "^0.2.8",
 		"@vdegenne/chrome-extension": "^0.1.23",
-		"@vdegenne/forms": "^0.1.74",
+		"@vdegenne/forms": "^0.1.75",
 		"@vdegenne/material-color-helpers": "^1.11.7",
 		"@vdegenne/rollup": "^0.1.18",
 		"@vdegenne/rollup-plugin-minify-html": "^1.0.6",
