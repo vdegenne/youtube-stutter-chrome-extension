@@ -5,7 +5,7 @@ import {saveToLocalStorage} from 'snar-save-to-local-storage'
 @saveToLocalStorage('youtube-stutter:store')
 class Store extends ReactiveController {
 	@state() stopAfterM = 0
-	@state() playDurationS = 5
+	@state() repeatEveryS = 5
 	@state() numberOfRepeats = 0
 	@state() pauseBetweenRepeatsS = 10
 	@state() innerPauseDurationS = 10

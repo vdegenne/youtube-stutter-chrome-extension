@@ -1,30 +1,41 @@
 import {ReactiveController, state} from '@snar/lit'
 import {store} from './store.js'
+import {sleep} from './utils.js'
 import {VideoController} from './video.js'
 
 export enum ControllerState {
-	PLAYING = 'PLAYING',
-	PAUSED_BETWEEN_REPEATS = 'PAUSED_BETWEEN_REPEATS',
-	PAUSED_INNER = 'PAUSED_INNER',
+	WAITING_RESUME = 'WAITING_RESUME',
+	WAITING_PAUSE = 'WAITING_PAUSE',
+	WAITING_REPEAT = 'WAITING_REPEAT',
 }
 
 class LoopController extends ReactiveController {
-	@state() state: ControllerState = ControllerState.PLAYING
+	@state() state: ControllerState = ControllerState.WAITING_RESUME
+
 	@state() isRunning = false
 
 	#video: HTMLVideoElement | undefined
 
 	#repeatCount = 0
+	#pauseAt: number | undefined
+	#resumeAt: number | undefined
 
-	#timeout: number | null = null
+	#loopTimeout: number | null = null
 	#videoCheckInterval: number | null = null
-	#stopTimeout: number | null = null
+	#stopTimeout = 0
 
 	#expectedPlay = false
 	#expectedPause = false
 
 	static readonly videoCheckIntervalMs = 2000
-	static readonly repeatStartDelayMs = 400
+
+	get resumeAt() {
+		return this.#resumeAt
+	}
+
+	get pauseAt() {
+		return this.#pauseAt
+	}
 
 	private handleVideoPlay = () => {
 		if (this.#expectedPlay) {
@@ -47,78 +58,18 @@ class LoopController extends ReactiveController {
 	private checkVideo() {
 		if (!this.isRunning) return
 
-		if (VideoController.getVideo() !== this.#video) {
+		const video = VideoController.getVideo()
+
+		if (video !== this.#video) {
 			this.stop()
 		}
 	}
 
-	private schedule(callback: () => void, delay: number) {
-		if (!this.isRunning) return
-
-		this.#timeout = window.setTimeout(() => {
-			this.#timeout = null
-
-			if (!this.isRunning) return
-
-			callback()
-		}, delay)
-	}
-
-	private playSegment() {
-		if (!this.isRunning) return
-
-		const video = this.#video
-
-		if (!video) return
-
-		this.state = ControllerState.PLAYING
-		this.#expectedPlay = true
-		void video.play()
-
-		this.schedule(() => this.finishSegment(), store.playDurationS * 1000)
-	}
-
-	private finishSegment() {
-		if (!this.isRunning) return
-
-		const video = this.#video
-
-		if (!video) return
-
-		this.#expectedPause = true
-		video.pause()
-
-		this.#repeatCount++
-
-		if (this.#repeatCount <= store.numberOfRepeats) {
-			this.state = ControllerState.PAUSED_BETWEEN_REPEATS
-
-			this.schedule(() => this.startRepeat(), store.pauseBetweenRepeatsS * 1000)
-		} else {
-			video.playbackRate = 1
-
-			this.#repeatCount = 0
-			this.state = ControllerState.PAUSED_INNER
-
-			this.schedule(() => this.playSegment(), store.innerPauseDurationS * 1000)
-		}
-	}
-
-	private startRepeat() {
-		if (!this.isRunning) return
-
-		const video = this.#video
-
-		if (!video) return
-
-		video.currentTime = Math.max(0, video.currentTime - store.playDurationS)
-
-		this.schedule(() => this.playSegment(), LoopController.repeatStartDelayMs)
-	}
-
 	resetState() {
-		this.state = ControllerState.PLAYING
+		this.state = ControllerState.WAITING_RESUME
 		this.#repeatCount = 0
+		this.#pauseAt = undefined
+		this.#resumeAt = undefined
 	}
 
 	async updateState() {}
@@ -137,6 +88,8 @@ class LoopController extends ReactiveController {
 		video.addEventListener('play', this.handleVideoPlay)
 		video.addEventListener('pause', this.handleVideoPause)
 
+		this.#resumeAt = Date.now()
+
 		this.#videoCheckInterval = window.setInterval(
 			() => this.checkVideo(),
 			LoopController.videoCheckIntervalMs,
@@ -144,12 +97,80 @@ class LoopController extends ReactiveController {
 
 		if (store.stopAfterM !== 0) {
 			this.#stopTimeout = window.setTimeout(
-				() => this.stop(),
+				() => {
+					this.stop()
+				},
 				store.stopAfterM * 60 * 1000,
 			)
 		}
 
-		this.playSegment()
+		const loop = async () => {
+			if (!this.isRunning) return
+
+			const video = this.#video
+
+			if (!video) return
+
+			switch (this.state) {
+				case ControllerState.WAITING_RESUME:
+					if (Date.now() >= this.#resumeAt!) {
+						this.state = ControllerState.WAITING_PAUSE
+
+						this.#pauseAt = video.currentTime + store.repeatEveryS
+
+						this.#expectedPlay = true
+						void video.play()
+					}
+					break
+
+				case ControllerState.WAITING_PAUSE:
+					if (video.currentTime >= this.#pauseAt!) {
+						video.currentTime = this.#pauseAt!
+
+						this.#expectedPause = true
+						video.pause()
+
+						this.#repeatCount++
+
+						if (this.#repeatCount <= store.numberOfRepeats) {
+							this.state = ControllerState.WAITING_REPEAT
+
+							this.#resumeAt = Date.now() + store.pauseBetweenRepeatsS * 1000
+						} else {
+							video.playbackRate = 1
+
+							this.resetState()
+
+							this.#resumeAt = Date.now() + store.innerPauseDurationS * 1000
+						}
+					}
+					break
+
+				case ControllerState.WAITING_REPEAT:
+					if (Date.now() >= this.#resumeAt!) {
+						this.state = ControllerState.WAITING_PAUSE
+
+						video.currentTime = Math.max(
+							0,
+							video.currentTime - store.repeatEveryS,
+						)
+
+						await sleep(400)
+
+						if (!this.isRunning) return
+
+						this.#expectedPlay = true
+						void video.play()
+					}
+					break
+			}
+
+			if (!this.isRunning) return
+
+			this.#loopTimeout = window.setTimeout(loop, 10)
+		}
+
+		this.#loopTimeout = window.setTimeout(loop, 10)
 	}
 
 	stop() {
@@ -165,11 +186,12 @@ class LoopController extends ReactiveController {
 
 		this.#expectedPlay = false
 		this.#expectedPause = false
+
 		this.isRunning = false
 
-		if (this.#timeout !== null) {
-			clearTimeout(this.#timeout)
-			this.#timeout = null
+		if (this.#loopTimeout !== null) {
+			clearTimeout(this.#loopTimeout)
+			this.#loopTimeout = null
 		}
 
 		if (this.#videoCheckInterval !== null) {
@@ -177,10 +199,8 @@ class LoopController extends ReactiveController {
 			this.#videoCheckInterval = null
 		}
 
-		if (this.#stopTimeout !== null) {
-			clearTimeout(this.#stopTimeout)
-			this.#stopTimeout = null
-		}
+		clearTimeout(this.#stopTimeout)
+		this.#stopTimeout = 0
 
 		this.#video = undefined
 
@@ -188,10 +208,10 @@ class LoopController extends ReactiveController {
 	}
 
 	toggle() {
-		if (this.isRunning) {
-			this.stop()
-		} else {
+		if (!this.isRunning) {
 			this.start()
+		} else {
+			this.stop()
 		}
 	}
 }
