@@ -167,10 +167,10 @@ class LoopController extends ReactiveController {
 
 			if (!this.isRunning) return
 
-			this.#loopTimeout = window.setTimeout(loop, 10)
+			this.#loopTimeout = window.setTimeout(loop, 50)
 		}
 
-		this.#loopTimeout = window.setTimeout(loop, 10)
+		this.#loopTimeout = window.setTimeout(loop, 50)
 	}
 
 	stop() {
