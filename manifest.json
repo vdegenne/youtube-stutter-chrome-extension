@@ -35,7 +35,7 @@
 			"matches": ["https://www.youtube.com/*"]
 		}
 	],
-	"options_page": "/documents/options/dist/index.html",
+	/*"options_page": "/documents/options/dist/index.html",*/
 	"action": {
 		// "default_popup": "/documents/popup/dist/index.html",
 		"default_title": "Open settings"

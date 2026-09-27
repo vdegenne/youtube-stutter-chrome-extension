@@ -10,7 +10,8 @@
 	},
 	"wireit": {
 		"build": {
-			"command": "npx @vdegenne/bip && notify-send -t 1000 \"Build done\"",
+			"#command": "npx @vdegenne/bip && notify-send -t 1000 \"Build done\"",
+      "command": "echo done",
 			"dependencies": [
 				"build:content",
 				"build:ts",
